@@ -1,0 +1,7 @@
+# Flags GCC/STM32CubeIDE pass that clang doesn't understand
+CompileFlags:
+  Remove:
+    - -fcyclomatic-complexity
+    - -mthumb-interwork
+    - -fstack-usage
+    - -specs=*

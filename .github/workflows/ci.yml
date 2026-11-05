@@ -1,0 +1,40 @@
+name: boot
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 9 * * 1" # weekly: catch upstream plugin breakage
+
+jobs:
+  boot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - name: tree-sitter CLI
+        run: |
+          mkdir -p ~/.local/bin
+          curl -fsSL https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-x64.gz \
+            | gunzip > ~/.local/bin/tree-sitter
+          chmod +x ~/.local/bin/tree-sitter
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Link config
+        run: mkdir -p ~/.config && ln -s "$GITHUB_WORKSPACE" ~/.config/nvim
+      - name: Install plugins
+        run: nvim --headless "+Lazy! sync" +qa
+      - name: Check config
+        run: nvim --headless -c "luafile scripts/ci-check.lua"
+
+  stylua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check lua scripts
