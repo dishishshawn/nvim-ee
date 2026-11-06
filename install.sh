@@ -27,7 +27,7 @@ esac
 step "apt packages"
 sudo apt-get update
 sudo apt-get install -y \
-  git curl unzip build-essential ripgrep fd-find python3 python3-venv \
+  git curl unzip jq build-essential ripgrep fd-find python3 python3-venv \
   gcc-arm-none-eabi gdb-multiarch openocd cmake ninja-build
 
 step "Neovim >= $NVIM_MIN"

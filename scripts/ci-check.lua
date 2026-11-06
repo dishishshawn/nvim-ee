@@ -9,6 +9,10 @@ local function check(cond, what)
   end
 end
 
+pcall(function()
+  require("persistence").stop() -- leave no session behind for the temp project
+end)
+
 local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp .. "/build/Debug", "p")
 vim.fn.writefile({ "int main(void) { return 0; }" }, tmp .. "/main.c")
@@ -40,12 +44,38 @@ check(cmd:find("--query-driver=", 1, true) ~= nil, "clangd has --query-driver")
 
 local cc = LazyVim.opts("claudecode.nvim")
 check(cc.diff_opts and cc.diff_opts.layout == "unified", "Claude edits shown inline (unified diff)")
+check((cc.terminal_cmd or ""):find("claude-review-hook.sh", 1, true), "Claude launched with the review hook")
+
+-- uses claudecode.nvim internals, so this is the check that catches a plugin update breaking it
+pcall(vim.cmd, "Lazy load claudecode.nvim")
+local diff, win, path = require("claudecode.diff"), vim.api.nvim_get_current_win(), vim.api.nvim_buf_get_name(0)
+local nwins, res = #vim.api.nvim_tabpage_list_wins(0), nil
+diff._setup_blocking_diff({
+  old_file_path = path,
+  new_file_path = path,
+  new_file_contents = "int main(void) { return 1; }\n",
+  tab_name = "ci",
+}, function(r)
+  res = r
+end)
+local in_place = #vim.api.nvim_tabpage_list_wins(0) == nwins
+check(
+  in_place and vim.b[vim.api.nvim_win_get_buf(win)].claudecode_inline_diff,
+  "Claude diff opens in the file's window"
+)
+vim.cmd("ClaudeCodeDiffAccept")
+diff._cleanup_diff_state("ci", "closed")
+local back = vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win)) == path
+check(res and res.content[1].text == "FILE_SAVED" and back, "file is back in its window after accepting")
+
+local ok_rv_group, view_cmds = pcall(vim.api.nvim_get_autocmds, { group = "restore_view" })
+check(ok_rv_group and #view_cmds >= 3, "session restore autocmds set up")
 
 local has_key = {}
 for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
   has_key[m.lhs] = true
 end
-for _, k in ipairs({ " ac", " aa", " ad", " mv", " mB", " dc" }) do
+for _, k in ipairs({ " ac", " aa", " ad", " ay", " an", " al", " mv", " mB", " dc" }) do
   check(has_key[k], "keymap <leader>" .. k:sub(2))
 end
 

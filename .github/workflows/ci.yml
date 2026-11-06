@@ -28,6 +28,8 @@ jobs:
         run: nvim --headless "+Lazy! sync" +qa
       - name: Check config
         run: nvim --headless -c "luafile scripts/ci-check.lua"
+      - name: Check Claude review hook
+        run: bash scripts/test-claude-review-hook.sh
 
   stylua:
     runs-on: ubuntu-latest
